@@ -1,7 +1,18 @@
 {
+  "version": 2,
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "devCommand": "npm dev",
+  "buildCommand": "npm build",
+  "installCommand": "npm install --no-frozen-lockfile",
+  "outputDirectory": "dist",
   "functions": {
     "api/*.py": {
-      "runtime": "python3.9"
+      "maxDuration": 10
     }
-  }
+  },
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "/api/:path*" },
+    { "source": "/(.*)", "destination": "/index.html" }
+  ]
 }
