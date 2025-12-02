@@ -3,13 +3,15 @@
 import { useState } from 'react';
 import NodeSelector from '@/components/NodeSelector';
 import { SecretKey, ClusterKey, encrypt, decrypt } from '@nillion/blindfold';
+import { KeyType, encryptThresholdData, decryptThresholdData } from "../lib";
 
 export default function StorePage() {
   const [nodeCount, setNodeCount] = useState<number>(3);
   const [threshold, setThreshold] = useState<number>(3);
-  const [keyType, setKeyType] = useState<'secret' | 'cluster'>('secret');
+  const [keyType, setKeyType] = useState<KeyType>(KeyType.SecretKey);
   const [useSeed, setUseSeed] = useState(true);
   const [seed, setSeed] = useState('my-deterministic-seed-12345');
+  const [maliciousNodes, setMaliciousNodes] = useState<number[]>([]);
   const [showSeed, setShowSeed] = useState(false);
   const [showOutputSeed, setShowOutputSeed] = useState(false);
   const [inputData, setInputData] = useState('');
@@ -41,7 +43,7 @@ export default function StorePage() {
     resetOutput();
   };
 
-  const setKeyTypeWithReset = (type: 'secret' | 'cluster') => {
+  const setKeyTypeWithReset = (type: KeyType) => {
     setKeyType(type);
     resetOutput();
   };
@@ -55,6 +57,7 @@ export default function StorePage() {
     try {
       setError('');
       setDecryptedData('');
+      setMaliciousNodes([]);
 
       const usesThreshold = nodeCount !== threshold;
       let ciphertext;
@@ -78,49 +81,25 @@ export default function StorePage() {
         dataToEncrypt = inputData;
       }
 
-      if (keyType === 'secret' && !seed.trim()) {
+      if (keyType === KeyType.SecretKey && !seed.trim()) {
         setError('SecretKey requires a deterministic seed');
         return;
       }
 
       if (usesThreshold) {
-        // Multi-node (threshold) flow: call backend API to perform store
 
-        // Build request payload expected by the API
-        const payload: any = {
-          secret: inputType === 'integer' ? Number(dataToEncrypt) : dataToEncrypt,
-          cluster_size: nodeCount,
-          threshold,
-          key_type: keyType,
-        };
-        if (keyType === 'secret') payload.key_seed = seed;
+        ciphertext = await encryptThresholdData(
+            inputType === 'integer' ? Number(dataToEncrypt) : dataToEncrypt,
+            nodeCount,
+            threshold,
+            keyType,
+            seed,
+        );
 
-        const res = await fetch('https://blindfold-demos-4prue08d2-javis-projects-c8695025.vercel.app/api/blindfold_encrypt', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        });
-
-        const json = await res.json().catch(() => ({} as any));
-        console.log("API Response:", json);
-        if (!res.ok) {
-          throw new Error(json?.error || json?.message || res.statusText);
-        }
-
-        // Accept several possible response shapes from the API
-        // e.g. { shares: [...], key: {...} } or { ciphertext: [...], key: ... }
-        ciphertext =
-          (json as any).shares ??
-          (json as any).ciphertext ??
-          (json as any).encrypted ??
-          json;
-
-        const generatedKey = (json as any).key ?? (json as any).metadata ?? null;
-        setKey(generatedKey);
+        setKey({});
       } else {
         // Create cluster configuration
         const cluster = { nodes: Array(nodeCount).fill({}) };
-
         // Generate key based on type and options
         let generatedKey;
         if (keyType === 'secret') {
@@ -137,7 +116,7 @@ export default function StorePage() {
         setKey(generatedKey);
         // Encrypt the data
         ciphertext = await encrypt(generatedKey, dataToEncrypt);
-      
+
       }
 
       setEncryptedData(ciphertext);
@@ -148,6 +127,9 @@ export default function StorePage() {
   };
 
   const handleRestore = async () => {
+    setError('');
+    setDecryptedData('');
+    setMaliciousNodes([]);
     setEncryptedData(encryptedDataBackup);
   };
 
@@ -156,21 +138,45 @@ export default function StorePage() {
       setError('');
       setDecryptedData('');
 
-      if (!key || !encryptedData) {
-        setError('Please encrypt data first');
-        return;
+      const usesThreshold = nodeCount !== threshold;
+      let plaintext;
+
+      if (usesThreshold) {
+        
+        const decryption = await decryptThresholdData(
+          encryptedData,
+          nodeCount,
+          threshold,
+          keyType,
+          seed,
+        );
+
+        if (!decryption.validResult) {
+          setError('Could not reconstruct the secret with the provided shares');
+          return;
+        }
+
+        setMaliciousNodes(decryption.malicious);
+
+        plaintext = decryption.validResult!.result;
+
+      } else {
+        if (!key || !encryptedData) {
+          setError('Please encrypt data first');
+          return;
+        }
+        plaintext = await decrypt(key, encryptedData);
       }
 
-      // Decrypt the data
-      const plaintext = await decrypt(key, encryptedData);
       setDecryptedData(plaintext as string);
+
     } catch (err: any) {
       setError(err.message || 'Decryption failed');
     }
   };
 
   const corruptShare = (nodeIdx: number): void => {
-    setEncryptedDataBackup(encryptedData)
+    if (!encryptedDataBackup) setEncryptedDataBackup(encryptedData)
     setEncryptedData((prev: any) => {
       const updated = [...prev];
       const share = updated[nodeIdx];
@@ -201,8 +207,11 @@ export default function StorePage() {
           {nodeCount === 1
             ? 'node with an encrypted share'
             : `${nodeCount} nodes with encrypted shares`}
+          {nodeCount > threshold
+            ? ` and a threshold of ${threshold}`
+            : `, all shares are needed`}
         </h3>
-
+        
         <div
           className={`grid gap-2 ${
             nodeCount <= 2
@@ -227,7 +236,7 @@ export default function StorePage() {
                   </div>
 
                   {/* Encrypted share display */}
-                  <div className=" p-2 min-h-[60px] flex items-center border border-gray-700">
+                  <div className={`p-2 min-h-[60px] flex items-center border ${maliciousNodes.includes(i) ? 'border border-red-500' : decryptedData === '' ? 'border-gray-700' : 'border-green-700'}`}>
                     <div className="w-full">
                       <div className="text-white/60 text-xs mb-1">Share:</div>
                       <textarea
@@ -242,7 +251,7 @@ export default function StorePage() {
                       />
                     </div>
                   </div>
-                  {nodeCount !== threshold && (
+                  {nodeCount !== threshold && !decryptedData && (
                     <button
                       onClick={() => corruptShare(i)}
                       className="mt-2 w-full py-1 px-2 rounded bg-red-500/20 hover:bg-red-500/40 text-red-300 text-xs font-medium transition-all"
@@ -414,7 +423,7 @@ export default function StorePage() {
                       checked={keyType === 'secret'}
                       onChange={(e) =>
                         setKeyTypeWithReset(
-                          e.target.value as 'secret' | 'cluster'
+                          e.target.value as KeyType
                         )
                       }
                       className="mt-1 mr-2 text-gray-400 accent-green-600"
@@ -434,10 +443,10 @@ export default function StorePage() {
                       type="radio"
                       name="keyType"
                       value="cluster"
-                      checked={keyType === 'cluster'}
+                      checked={keyType === KeyType.ClusterKey}
                       onChange={(e) =>
                         setKeyTypeWithReset(
-                          e.target.value as 'secret' | 'cluster'
+                          e.target.value as KeyType
                         )
                       }
                       className="mt-1 mr-2 text-gray-400 accent-green-600"
@@ -566,6 +575,14 @@ export default function StorePage() {
                             : '32-bit Integer'}
                         </span>
                       </div>
+                      {nodeCount > threshold && (
+                          <div>
+                          <span className="text-gray-400">Threshold:</span>
+                          <span className="ml-1 font-medium text-white">
+                            {threshold}
+                          </span>
+                        </div>
+                      )}
                       {keyType === 'secret' && (
                         <div className="col-span-2 flex items-center">
                           <span className="text-gray-400">Seed:</span>
@@ -714,9 +731,14 @@ export default function StorePage() {
                     <h3 className="font-medium mb-2 text-white flex items-center text-sm">
                       DECRYPTED OUTPUT
                     </h3>
-                    <div className=" p-3  font-mono text-sm text-green-400 break-all">
+                    <div className="p-3  font-mono text-sm text-green-400 break-all">
                       {decryptedData}
                     </div>
+                    {nodeCount > threshold && (
+                      <div className="mt-3  font-mono text-sm text-blue-400 break-all">
+                        Reconstructed with { nodeCount - maliciousNodes.length } out of the { nodeCount } nodes
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

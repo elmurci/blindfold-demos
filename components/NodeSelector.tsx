@@ -19,7 +19,7 @@ export default function NodeSelector({
     <div className="border border-gray-700 p-4">
       <div className="mb-4">
         <label className="block text-sm font-medium mb-2 text-white font-mono">
-          NODE COUNT: {nodeCount} z{showThreshold}z
+          NODE COUNT: {nodeCount}
         </label>
         <input
           type="range"
