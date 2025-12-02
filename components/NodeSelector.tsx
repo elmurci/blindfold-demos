@@ -19,7 +19,7 @@ export default function NodeSelector({
     <div className="border border-gray-700 p-4">
       <div className="mb-4">
         <label className="block text-sm font-medium mb-2 text-white font-mono">
-          NODE COUNT: {nodeCount}
+          NODE COUNT: {nodeCount} z{showThreshold}z
         </label>
         <input
           type="range"
@@ -48,7 +48,7 @@ export default function NodeSelector({
           </label>
           <input
             type="range"
-            min="1"
+            min="2"
             max={nodeCount}
             value={threshold || 1}
             onChange={(e) => setThreshold(Number(e.target.value))}
