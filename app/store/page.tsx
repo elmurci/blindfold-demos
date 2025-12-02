@@ -95,7 +95,7 @@ export default function StorePage() {
         };
         if (keyType === 'secret') payload.key_seed = seed;
 
-        const res = await fetch('https://blindfold-demos-h1ucoljar-javis-projects-c8695025.vercel.app/api/blindfold_encrypt', {
+        const res = await fetch('https://blindfold-demos-4prue08d2-javis-projects-c8695025.vercel.app/api/blindfold_encrypt', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),

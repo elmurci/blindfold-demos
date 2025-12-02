@@ -2,6 +2,18 @@ from http.server import BaseHTTPRequestHandler
 import json
 
 class handler(BaseHTTPRequestHandler):
+    def _set_cors_headers(self):
+        """Set CORS headers for all responses"""
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Methods', 'POST, OPTIONS')
+        self.send_header('Access-Control-Allow-Headers', 'Content-Type')
+    
+    def do_OPTIONS(self):
+        """Handle preflight OPTIONS request"""
+        self.send_response(200)
+        self._set_cors_headers()
+        self.end_headers()
+        
     def do_POST(self):
         try:
             from blindfold import ClusterKey, decrypt, SecretKey
