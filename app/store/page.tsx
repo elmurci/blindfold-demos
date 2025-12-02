@@ -674,14 +674,16 @@ export default function StorePage() {
                   >
                     RUN DECRYPT
                   </button>
-                  <button
-                    onClick={handleRestore}
-                    className={`flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 font-medium transition-colors ${!encryptedDataBackup ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    data-umami-event="store-run-restore"
-                    disabled={!encryptedDataBackup}
-                  >
-                    RESTORE ORIGINAL
-                  </button>
+                  {nodeCount > threshold && (
+                    <button
+                      onClick={handleRestore}
+                      className={`flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 font-medium transition-colors ${!encryptedDataBackup ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      data-umami-event="store-run-restore"
+                      disabled={!encryptedDataBackup}
+                    >
+                      RESTORE ORIGINAL
+                    </button>
+                  )}
                   <button
                     onClick={() => {
                       const shares = Array.isArray(encryptedData)
