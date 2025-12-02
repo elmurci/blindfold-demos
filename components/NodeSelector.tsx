@@ -55,7 +55,7 @@ export default function NodeSelector({
             className="w-full accent-green-600"
           />
           <div className="text-xs text-gray-400 mt-1 font-mono">
-            min: 1, max: {nodeCount}
+            min: 2, max: {nodeCount}
           </div>
         </div>
       )}
