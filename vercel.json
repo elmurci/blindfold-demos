@@ -1,9 +1,6 @@
 {
   "version": 2,
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "framework": "nextjs",
-  "devCommand": "npm dev",
-  "buildCommand": "npm build",
+  "buildCommand": "npm run build",
   "installCommand": "npm install --no-frozen-lockfile",
   "outputDirectory": "dist",
   "functions": {
