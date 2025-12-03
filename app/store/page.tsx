@@ -13,6 +13,7 @@ export default function StorePage() {
   const [seed, setSeed] = useState('my-deterministic-seed-12345');
   const [maliciousNodes, setMaliciousNodes] = useState<number[]>([]);
   const [showSeed, setShowSeed] = useState(false);
+  const [isDecrypting, setIsDecrypting] = useState(false);
   const [showOutputSeed, setShowOutputSeed] = useState(false);
   const [inputData, setInputData] = useState('');
   const [inputType, setInputType] = useState<'string' | 'integer'>('string');
@@ -137,6 +138,7 @@ export default function StorePage() {
     try {
       setError('');
       setDecryptedData('');
+      setIsDecrypting(true);
 
       const usesThreshold = nodeCount !== threshold;
       let plaintext;
@@ -172,7 +174,9 @@ export default function StorePage() {
 
     } catch (err: any) {
       setError(err.message || 'Decryption failed');
+      
     }
+    setIsDecrypting(false);
   };
 
   const corruptShare = (nodeIdx: number): void => {
@@ -672,18 +676,34 @@ export default function StorePage() {
                     className="flex-1 bg-green-600 hover:bg-green-700 text-white py-3 px-4 font-medium transition-colors"
                     data-umami-event="store-run-decrypt"
                   >
-                    RUN DECRYPT
+                    {isDecrypting && (
+                      <>
+                        <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        className="inline h-4 w-4 mr-2 animate-spin"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                        />
+                        </svg>
+                      </>
+                      )}
+                      RUN DECRYPT
                   </button>
-                  {nodeCount > threshold && (
-                    <button
-                      onClick={handleRestore}
-                      className={`flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 font-medium transition-colors ${!encryptedDataBackup ? 'opacity-50 cursor-not-allowed' : ''}`}
-                      data-umami-event="store-run-restore"
-                      disabled={!encryptedDataBackup}
-                    >
-                      RESTORE ORIGINAL
-                    </button>
-                  )}
+                  <button
+                    onClick={handleRestore}
+                    className={`flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 font-medium transition-colors ${!encryptedDataBackup ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    data-umami-event="store-run-restore"
+                    disabled={!encryptedDataBackup}
+                  >
+                    RESTORE ORIGINAL
+                  </button>
                   <button
                     onClick={() => {
                       const shares = Array.isArray(encryptedData)
